@@ -11,3 +11,8 @@ into multiple smaller subnets.
 
 This allows the architecture to create separate public and private subnets
 across multiple Availability Zones while leaving room for future expansion.
+
+## Internet Gateway
+
+Created and attached an Internet Gateway (`aws-ha-igw`) project VPC.
+This connects public subnets to internet.
