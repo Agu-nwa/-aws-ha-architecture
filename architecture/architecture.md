@@ -5,7 +5,7 @@ flowchart TD
 
     U[users]
 
-    U--> ALB [Application Load Balancer]
+    U--> ALB[Application Load Balancer]
     ALB --> EC2A[EC2 Instance - AZ A]
     ALB --> EC2B[EC2 Instance - AZ B]
 
