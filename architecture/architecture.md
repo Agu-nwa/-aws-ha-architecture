@@ -11,39 +11,23 @@ flowchart TD
 
         subgraph VPC["aws-ha-vpc - 10.0.0.0/16"]
 
-            subgraph PUBLIC["Public Tier"]
-
-                ALB[Application Load Balancer<br/>aws-ha-alb]
-
-            end
+            ALB[Application Load Balancer<br/>aws-ha-alb]
 
             TG[Target Group<br/>aws-ha-tg]
 
-            subgraph ASG["Auto Scaling Group - aws-ha-asg<br/>Min: 2 | Desired: 2 | Max: 4"]
+            subgraph ASG["Auto Scaling Group - aws-ha-asg"]
 
-                subgraph AZA["Availability Zone - sa-east-1a"]
-                    EC2A[EC2 Instance<br/>Nginx Web Server]
-                end
+                EC2A[EC2 Instance<br/>sa-east-1a<br/>Nginx]
 
-                subgraph AZB["Availability Zone - sa-east-1b"]
-                    EC2B[EC2 Instance<br/>Nginx Web Server]
-                end
+                EC2B[EC2 Instance<br/>sa-east-1b<br/>Nginx]
 
             end
 
-            subgraph DATA["RDS Multi-AZ Database Tier"]
+            RDSENDPOINT[RDS PostgreSQL<br/>Endpoint]
 
-                RDSENDPOINT[RDS PostgreSQL<br/>Endpoint]
+            RDSPRIMARY[(RDS Primary<br/>PostgreSQL)]
 
-                RDSPRIMARY[(RDS Primary<br/>PostgreSQL)]
-
-                RDSSTANDBY[(RDS Standby<br/>PostgreSQL)]
-
-                RDSENDPOINT --> RDSPRIMARY
-
-                RDSPRIMARY -. Synchronous Replication .-> RDSSTANDBY
-
-            end
+            RDSSTANDBY[(RDS Standby<br/>PostgreSQL)]
 
         end
 
@@ -60,6 +44,10 @@ flowchart TD
 
     EC2A --> RDSENDPOINT
     EC2B --> RDSENDPOINT
+
+    RDSENDPOINT --> RDSPRIMARY
+
+    RDSPRIMARY -.->|Synchronous Replication| RDSSTANDBY
 
     EC2A --> S3
     EC2B --> S3
