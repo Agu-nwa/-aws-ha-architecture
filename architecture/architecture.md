@@ -31,8 +31,18 @@ flowchart TD
 
             end
 
-            subgraph DATA["Database Tier"]
-                RDS[(Amazon RDS<br/>PostgreSQL)]
+            subgraph DATA["RDS Multi-AZ Database Tier"]
+
+                RDSENDPOINT[RDS PostgreSQL<br/>Endpoint]
+
+                RDSPRIMARY[(RDS Primary<br/>PostgreSQL)]
+
+                RDSSTANDBY[(RDS Standby<br/>PostgreSQL)]
+
+                RDSENDPOINT --> RDSPRIMARY
+
+                RDSPRIMARY -. Synchronous Replication .-> RDSSTANDBY
+
             end
 
         end
@@ -48,8 +58,8 @@ flowchart TD
     TG --> EC2A
     TG --> EC2B
 
-    EC2A --> RDS
-    EC2B --> RDS
+    EC2A --> RDSENDPOINT
+    EC2B --> RDSENDPOINT
 
     EC2A --> S3
     EC2B --> S3
@@ -63,9 +73,10 @@ flowchart TD
 4. The target group distributes requests across healthy EC2 instances.
 5. EC2 instances are managed by `aws-ha-asg`.
 6. The Auto Scaling Group maintains at least two instances and can scale to four.
-7. Application instances communicate privately with Amazon RDS PostgreSQL.
-8. RDS is not publicly accessible.
-9. Application instances can use Amazon S3 for object storage.
+7. Application instances connect to PostgreSQL through the RDS endpoint.
+8. RDS maintains a synchronous standby database in another Availability Zone.
+9. RDS is not publicly accessible.
+10. Application instances can use Amazon S3 for object storage.
 
 ## High Availability
 
@@ -76,9 +87,26 @@ The Auto Scaling Group distributes application instances across:
 - `sa-east-1a`
 - `sa-east-1b`
 
-If an application instance fails, the Application Load Balancer stops routing
-traffic to the unhealthy target while the Auto Scaling Group launches a
-replacement instance.
+If an application instance becomes unhealthy, the Application Load Balancer
+stops routing traffic to that instance.
+
+The Auto Scaling Group can launch a replacement instance to maintain the
+configured desired capacity.
+
+### Database High Availability
+
+Amazon RDS PostgreSQL is configured with **Multi-AZ enabled**.
+
+RDS maintains a synchronous standby database in another Availability Zone.
+
+If the primary database instance or its Availability Zone becomes unavailable,
+Amazon RDS can automatically fail over to the standby database.
+
+Applications continue connecting through the RDS database endpoint rather than
+connecting directly to either the primary or standby instance.
+
+The standby database is used for **high availability and failover**, not for
+serving normal application read traffic.
 
 ## Scaling
 
@@ -97,15 +125,16 @@ based on demand.
 
 ## Security
 
-The architecture uses separate security groups for each tier.
+The architecture uses separate security groups for the application tiers.
 
 - The ALB accepts public web traffic.
 - EC2 instances accept application traffic from the ALB security group.
 - RDS is not publicly accessible.
-- PostgreSQL access should be restricted to the application security group.
+- PostgreSQL access is restricted to the application tier.
+- The Multi-AZ standby is managed internally by Amazon RDS.
 
-This creates the intended traffic path:
+The intended application traffic path is:
 
-`Internet → ALB → EC2 → RDS`
+`Internet → ALB → Target Group → EC2 → RDS Endpoint → PostgreSQL`
 
-rather than exposing the EC2 application or database directly to the internet.
+This prevents the database from being directly exposed to the internet.
